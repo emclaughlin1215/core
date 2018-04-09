@@ -886,7 +886,6 @@ class WebUIFilesContext extends RawMinkContext implements Context {
 	}
 	
 	/**
-<<<<<<< HEAD
 	 * @Then /^the folder should (not|)\s?be empty on the webUI$/
 	 *
 	 * @param string $shouldOrNot
@@ -924,10 +923,7 @@ class WebUIFilesContext extends RawMinkContext implements Context {
 	}
 
 	/**
-	 * @Then /^the (?:file|folder) ((?:'[^']*')|(?:"[^"]*")) should (not|)\s?be listed\s?(?:in the |)(trashbin|favorites page|files page|)\s?(?:folder ((?:'[^']*')|(?:"[^"]*")))? on the webUI$/
-=======
 	 * @Then /^the (?:file|folder) ((?:'[^']*')|(?:"[^"]*")) should (not|)\s?be listed\s?(?:in the |)(all-files page|trashbin|favorites page|shared-with-you page|)\s?(?:folder ((?:'[^']*')|(?:"[^"]*")))? on the webUI$/
->>>>>>> UI tests
 	 *
 	 * @param string $name enclosed in single or double quotes
 	 * @param string $shouldOrNot
