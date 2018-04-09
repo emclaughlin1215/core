@@ -1042,7 +1042,7 @@ class Session implements IUserSession, Emitter {
 		}
 
 		if ($includeBuiltIn) {
-			yield new BasicAuthModule($this->manager, $this->session);
+			yield new BasicAuthModule($this->config, $this->manager, $this->session, $this->timeFactory);
 		}
 	}
 }

@@ -24,6 +24,8 @@ namespace Test\User;
 
 
 use OC\User\BasicAuthModule;
+use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\IConfig;
 use OCP\IRequest;
 use OCP\ISession;
 use OCP\IUser;
@@ -32,10 +34,14 @@ use Test\TestCase;
 
 class BasicAuthModuleTest extends TestCase {
 
+	/** @var IConfig | \PHPUnit_Framework_MockObject_MockObject */
+	private $config;
 	/** @var IUserManager | \PHPUnit_Framework_MockObject_MockObject */
 	private $manager;
 	/** @var IRequest | \PHPUnit_Framework_MockObject_MockObject */
 	private $request;
+	/** @var ITimeFactory | \PHPUnit_Framework_MockObject_MockObject */
+	private $timeFactory;
 	/** @var IUser | \PHPUnit_Framework_MockObject_MockObject */
 	private $user;
 	/** @var ISession | \PHPUnit_Framework_MockObject_MockObject */
@@ -43,9 +49,11 @@ class BasicAuthModuleTest extends TestCase {
 
 	public function setUp() {
 		parent::setUp();
+		$this->config = $this->createMock(IConfig::class);
 		$this->manager = $this->createMock(IUserManager::class);
 		$this->request = $this->createMock(IRequest::class);
 		$this->session = $this->createMock(ISession::class);
+		$this->timeFactory = $this->createMock(ITimeFactory::class);
 
 		$this->user = $this->createMock(IUser::class);
 		$this->user->expects($this->any())->method('getUID')->willReturn('user1');
@@ -66,6 +74,9 @@ class BasicAuthModuleTest extends TestCase {
 				['user2', []]
 			]);
 
+		// make config return default last_check_timeout
+		$this->config->method('getAppValue')->with('core', 'last_check_timeout', 5)->willReturn(5);
+
 	}
 
 	/**
@@ -75,12 +86,17 @@ class BasicAuthModuleTest extends TestCase {
 	 */
 	public function testAuth($expectedResult, $userId) {
 
-		$this->session
-			->method('exists')
-			->with('app_password')
-			->willReturn(false);
+		$this->session->method('exists')->will($this->returnValueMap([
+			['app_password', false],
+			['last_check_timeout', true]
+		]));
 
-		$module = new BasicAuthModule($this->manager, $this->session);
+		// check auth
+		$time = time();
+		$this->session->method('get')->with('last_check_timeout')->willReturn($time - 60 * 5);
+		$this->timeFactory->method('getTime')->willReturn($time);
+
+		$module = new BasicAuthModule($this->config, $this->manager, $this->session, $this->timeFactory);
 		$this->request->server = [
 			'PHP_AUTH_USER' => $userId,
 			'PHP_AUTH_PW' => '123456',
@@ -94,17 +110,21 @@ class BasicAuthModuleTest extends TestCase {
 
 	public function testAppPassword() {
 
-		$this->session
-			->expects($this->once())
-			->method('exists')
-			->with('app_password')
-			->willReturn(true);
+		$this->session->method('exists')->will($this->returnValueMap([
+			['app_password', true],
+			['last_check_timeout', true]
+		]));
+
+		// check auth
+		$time = time();
+		$this->session->method('get')->with('last_check_timeout')->willReturn($time - 60 * 5);
+		$this->timeFactory->method('getTime')->willReturn($time);
 
 		$this->manager
 			->expects($this->never())
 			->method('checkPassword');
 
-		$module = new BasicAuthModule($this->manager, $this->session);
+		$module = new BasicAuthModule($this->config, $this->manager, $this->session, $this->timeFactory);
 		$this->request->server = [
 			'PHP_AUTH_USER' => 'user',
 			'PHP_AUTH_PW' => 'app-pass-word',
@@ -113,7 +133,7 @@ class BasicAuthModuleTest extends TestCase {
 	}
 
 	public function testGetUserPassword() {
-		$module = new BasicAuthModule($this->manager, $this->session);
+		$module = new BasicAuthModule($this->config, $this->manager, $this->session, $this->timeFactory);
 		$this->request->server = [
 			'PHP_AUTH_USER' => 'user1',
 			'PHP_AUTH_PW' => '123456',
@@ -134,5 +154,38 @@ class BasicAuthModuleTest extends TestCase {
 			'not unique email can not login' => [new \Exception('Invalid credentials'), 'not-unique@example.com'],
 			'user2 is not known' => [new \Exception('Invalid credentials'), 'user2'],
 		];
+	}
+
+
+	public function testTimeout() {
+
+		$this->session->method('exists')->will($this->returnValueMap([
+			['app_password', false],
+			['last_check_timeout', true]
+		]));
+
+		$time = time();
+		$this->session->method('get')->will($this->returnValueMap([
+			['last_check_timeout', $time - 60 * 4],
+			['user_id', 'user1']
+		]));
+
+		$this->timeFactory->method('getTime')->willReturn($time);
+
+		$this->manager
+			->expects($this->never())
+			->method('checkPassword');
+
+		$this->manager->expects($this->once())->method('get')
+			->with('user1')->willReturn($this->user);
+
+		$module = new BasicAuthModule($this->config, $this->manager, $this->session, $this->timeFactory);
+
+		$this->request->server = [
+			'PHP_AUTH_USER' => 'user1',
+			'PHP_AUTH_PW' => '123456',
+		];
+
+		$this->assertEquals($this->user, $module->auth($this->request));
 	}
 }
