@@ -140,21 +140,6 @@
 			this.$el.find('#filestable th').toggleClass('hidden', !exists);
 		},
 
-		/**
-		 * Trashbin files are stored as filename.dxxxxx.
-		 * Extract this from the data-file attribute of the selected files.
-		 *
-		 * @return array of file names
-		 */
-		getSelectedDataFiles: function() {
-			var trSelectedFiles = this.$el.find('tr.selected');
-			var filesFromAttribute = [];
-			for (var i = 0; i < trSelectedFiles.length; i++) {
-				filesFromAttribute.push(trSelectedFiles[i].getAttribute('data-file'));
-			}
-			return filesFromAttribute;
-		},
-
 		_removeCallback: function(result) {
 			if (result.status !== 'success') {
 				OC.dialogs.alert(result.data.message, t('files_trashbin', 'Error'));
@@ -186,7 +171,7 @@
 				};
 			}
 			else {
-				files = this.getSelectedDataFiles();
+				files = _.pluck(this.getSelectedFiles(), 'realname');
 				for (var i = 0; i < files.length; i++) {
 					var deleteAction = this.findFileEl(files[i]).children("td.date").children(".action.delete");
 					deleteAction.removeClass('icon-delete').addClass('icon-loading-small');
@@ -229,7 +214,7 @@
 				};
 			}
 			else {
-				files = this.getSelectedDataFiles();
+				files = _.pluck(this.getSelectedFiles(), 'realname');
 				params = {
 					files: JSON.stringify(files),
 					dir: this.getCurrentDirectory()

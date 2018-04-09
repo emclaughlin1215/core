@@ -81,6 +81,7 @@ class Helper {
 			}
 			$i = [
 				'name' => $name,
+				'realname' => $pathparts['basename'], // A name with extension filename.dxxxx
 				'mtime' => $timestamp,
 				'mimetype' => $entry->getMimeType(),
 				'type' => $entry->getMimeType() === ICacheEntry::DIRECTORY_MIMETYPE ? 'dir' : 'file',
@@ -92,7 +93,7 @@ class Helper {
 			if ($originalPath) {
 				$i['extraData'] = $originalPath . '/' . $originalName;
 			}
-			$result[] = new FileInfo($absoluteDir . '/' . $i['name'], $storage, $internalPath . '/' . $i['name'], $i, $mount);
+			$result[] = new FileInfo($absoluteDir . '/' . $i['realname'], $storage, $internalPath . '/' . $i['realname'], $i, $mount);
 		}
 
 		if ($sortAttribute !== '') {
@@ -111,12 +112,15 @@ class Helper {
 		$id = 0;
 		foreach ($fileInfos as $i) {
 			$entry = \OCA\Files\Helper::formatFileInfo($i);
+			$pathParts = pathinfo($entry['name']);
+			$entry['name'] = $pathParts['filename'];
 			$entry['id'] = $id++;
 			$entry['etag'] = $entry['mtime']; // add fake etag, it is only needed to identify the preview image
 			$entry['permissions'] = \OCP\Constants::PERMISSION_READ;
 			if ($entry['mimetype'] !== 'httpd/unix-directory') {
 				$entry['mimetype'] = \OC::$server->getMimeTypeDetector()->detectPath($entry['name']);
 			}
+			$entry['realname'] = $pathParts['basename'];
 			$files[] = $entry;
 		}
 		return $files;
